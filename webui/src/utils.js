@@ -1,6 +1,6 @@
 import { exec } from 'kernelsu'
 
-export const MODULE_DIR = '/data/adb/modules/LuminPro'
+export const MODULE_DIR = '/data/adb/modules/LuminMax'
 export const CONFIG_DIR = `${MODULE_DIR}/config`
 export const CONFIG_FILE = `${MODULE_DIR}/config/config.json`
 export const BACKUP_CONFIG_FILE = `${MODULE_DIR}/config/.backup/config.json`
@@ -99,7 +99,7 @@ function _mockResponse(cmd) {
     return {
       errno: 0,
       stdout:
-        '[04-07 15:40:01] [service] [INFO    ] LuminPro 服务启动\n[04-07 15:41:05] [up] [INFO    ] 触发提升: 当前亮度 1200 ≥ 阈値 1000\n[04-07 15:42:10] [up] [SUCCESS ] 亮度提升完成 (3500)',
+        '[04-07 15:40:01] [service] [INFO    ] LuminMax 服务启动\n[04-07 15:41:05] [up] [INFO    ] 触发提升: 当前亮度 1200 ≥ 阈値 1000\n[04-07 15:42:10] [up] [SUCCESS ] 亮度提升完成 (3500)',
       stderr: '',
     }
   }
