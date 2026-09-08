@@ -9,7 +9,7 @@ const versionMatch = propContent.match(/^version=(.*)$/m)
 const versionCodeMatch = propContent.match(/^versionCode=(.*)$/m)
 
 const version = versionMatch ? versionMatch[1].trim() : 'Unknown'
-const versionCodeStr = versionCodeMatch[1].trim() : '0000'
+const versionCodeStr = versionCodeMatch ? versionCodeMatch[1].trim() : '0000'
 const versionCode = parseInt(versionCodeStr, 10)
 
 const zipName = `LuminMax_${version}.zip`
