@@ -8,7 +8,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 25px 25px;
+  padding: 20px 20px;
   transition: transform 0.35s cubic-bezier(0.25, 1, 0.5, 1);
   will-change: transform;
 }
@@ -45,7 +45,7 @@
 
 .header-text h1 {
   margin: 0;
-  font-size: 1.5rem;
+  font-size: 1.4rem;
   font-weight: 700;
   color: var(--md-sys-color-on-background);
   letter-spacing: -0.3px;
@@ -53,14 +53,14 @@
 
 .header-subtitle {
   margin: 0;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   color: var(--md-sys-color-on-surface-variant);
   font-weight: 400;
 }
 
 .header-version {
   margin: 0;
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   color: var(--md-sys-color-primary);
   font-weight: 600;
   letter-spacing: 0.5px;
@@ -71,7 +71,7 @@
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 12px;
+  gap: 10px;
 }
 
 .header-status {
@@ -79,9 +79,9 @@
   align-items: center;
   gap: 8px;
   background: var(--md-sys-color-surface-container-high);
-  padding: 8px 16px;
+  padding: 6px 14px;
   border-radius: 12px;
-  font-size: 0.8125rem;
+  font-size: 0.8rem;
   color: var(--md-sys-color-on-surface);
   font-weight: 500;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
@@ -90,30 +90,36 @@
 
 .header-status-actions {
   display: flex;
-  gap: 16px;
+  gap: 12px;
 }
 
 .btn-status-action {
   background: transparent;
   border: none;
   color: var(--md-sys-color-primary);
-  font-size: 0.8125rem;
+  font-size: 0.8rem;
   font-weight: 600;
   cursor: pointer;
-  padding: 2px 4px;
-  border-radius: 4px;
-  transition: all 0.2s;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: all 0.15s;
   opacity: 0.9;
 }
 
-.btn-status-action:active {
+.btn-status-action:active:not(:disabled) {
   background-color: var(--md-sys-color-primary-container);
   opacity: 1;
+  transform: scale(0.95);
+}
+
+.btn-status-action:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 .status-dot {
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   background-color: var(--md-sys-color-error);
   box-shadow: 0 0 8px rgba(244, 67, 54, 0.5);
