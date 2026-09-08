@@ -1,10 +1,12 @@
 import { ref, computed } from 'vue'
-import { runCmd, LOG_FILE } from '../utils.js'
+import { runCmd, runCmdSilent, LOG_FILE } from '../utils.js'
 
 export function useLog() {
   const fullLog = ref('')
   const filterLevel = ref('')
   const isLoading = ref(false)
+  const isClearing = ref(false)
+  const isExporting = ref(false)
 
   const filteredLog = computed(() => {
     if (!fullLog.value) return '暂无日志'
@@ -14,22 +16,27 @@ export function useLog() {
   })
 
   async function load() {
-    const res = await runCmd(`tail -n 100 "${LOG_FILE}"`)
+    const res = await runCmdSilent(`tail -n 100 "${LOG_FILE}"`)
     fullLog.value =
       res.errno === 0 ? res.stdout.trim() || '暂无日志' : '无法读取日志 (可能模块尚未产生日志文件)'
   }
 
   async function clear(toast) {
-    toast('正在清空日志...')
-    const res = await runCmd(`> "${LOG_FILE}"`)
-    if (res.errno === 0) {
-      fullLog.value = ''
-      toast('日志已清空')
-    } else toast('清空失败: ' + (res.stderr || '未知错误'))
+    if (isClearing.value) return
+    isClearing.value = true
+    try {
+      const res = await runCmd(`> "${LOG_FILE}"`)
+      if (res.errno === 0) {
+        fullLog.value = ''
+        toast('日志已清空')
+      } else toast('清空失败: ' + (res.stderr || '未知错误'))
+    } finally {
+      isClearing.value = false
+    }
   }
 
   async function copy(toast) {
-    const res = await runCmd(`tail -n 50 "${LOG_FILE}"`)
+    const res = await runCmdSilent(`tail -n 50 "${LOG_FILE}"`)
     if (res.errno !== 0 || !res.stdout.trim()) {
       toast('暂无日志内容')
       return
@@ -49,10 +56,26 @@ export function useLog() {
   }
 
   async function exportLog(toast) {
-    toast('正在导出...')
-    const res = await runCmd(`cp "${LOG_FILE}" "/sdcard/LuminPro_$(date '+%Y%m%d_%H%M%S').log"`)
-    toast(res.errno === 0 ? '日志已导出到 /sdcard' : '导出失败: ' + (res.stderr || '未知错误'))
+    if (isExporting.value) return
+    isExporting.value = true
+    try {
+      const res = await runCmd(`cp "${LOG_FILE}" "/sdcard/LuminPro_$(date '+%Y%m%d_%H%M%S').log"`)
+      toast(res.errno === 0 ? '日志已导出到 /sdcard' : '导出失败: ' + (res.stderr || '未知错误'))
+    } finally {
+      isExporting.value = false
+    }
   }
 
-  return { fullLog, filterLevel, filteredLog, isLoading, load, clear, copy, exportLog }
+  return {
+    fullLog,
+    filterLevel,
+    filteredLog,
+    isLoading,
+    isClearing,
+    isExporting,
+    load,
+    clear,
+    copy,
+    exportLog,
+  }
 }
