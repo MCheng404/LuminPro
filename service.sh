@@ -37,7 +37,7 @@ sleep 30
 # 清理上次遗留的标记文件（含 HDR 状态文件）
 rm -f "$MODDIR/pid/"*.flag "$MODDIR/pid/"*.pause "$MODDIR/pid/"*.lock "$MODDIR/pid/.hdr_ratio_cache" "$MODDIR/pid/hdr.state"
 
-_log "LuminPro 服务启动" "INFO"
+_log "LuminMax 服务启动" "INFO"
 _log "前台最大亮度: $(get_cfg ui_max_bri 0)" "INFO"
 _log "峰值最大亮度: $(get_cfg max_bri 0)" "INFO"
 _log "休眠时段: $(get_cfg sleep_time '')" "INFO"
