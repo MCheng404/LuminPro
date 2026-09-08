@@ -155,7 +155,7 @@ function handleViewChange(view) {
       <header class="app-header" ref="headerEl">
         <div class="header-content">
           <div class="header-text">
-            <h1>LuminPro</h1>
+            <h1>LuminMax</h1>
             <p class="header-subtitle">日用屏幕亮度强化</p>
             <p class="header-version">{{ moduleVersion || 'V2.2' }}</p>
           </div>
