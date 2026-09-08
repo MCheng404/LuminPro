@@ -10,6 +10,19 @@
   flex-direction: column;
 }
 
+/* 全局操作中状态：轻微降低交互元素可见性，提示正在处理 */
+.app-busy .btn-status-action,
+.app-busy .config-input,
+.app-busy .config-select,
+.app-busy .config-textarea,
+.app-busy .time-input {
+  cursor: wait;
+}
+
+.app-busy .brightness-slider {
+  cursor: wait;
+}
+
 /* Collapsible card header */
 .card-header-toggle {
   cursor: pointer;
@@ -94,14 +107,14 @@
 .config-group {
   margin-top: 12px;
   margin-bottom: 0;
-  padding: 12px;
+  padding: 14px;
   background-color: var(--md-sys-color-surface-container);
   border-radius: var(--border-radius-m);
   border: 1px solid rgba(var(--md-sys-color-on-surface-rgb, 0, 0, 0), 0.05);
 }
 
 .group-title {
-  margin: 0 0 10px 0;
+  margin: 0 0 12px 0;
   color: var(--md-sys-color-primary);
   font-size: 0.875rem;
   font-weight: 600;
@@ -120,7 +133,8 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 4px 0;
+  padding: 6px 0;
+  min-height: 44px;
 }
 
 #advanced-section .config-item {
@@ -135,24 +149,29 @@
 }
 
 .config-item + .config-item {
-  margin-top: 10px;
+  margin-top: 8px;
   border-top: 1px solid rgba(var(--md-sys-color-outline-variant-rgb, 142, 144, 153), 0.1);
-  padding-top: 10px;
+  padding-top: 12px;
 }
 
 .config-label {
   display: flex;
   flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  padding-right: 12px;
 }
 
 .config-name {
-  font-size: 1rem;
+  font-size: 0.95rem;
   color: var(--md-sys-color-on-surface);
+  font-weight: 500;
 }
 
 .config-desc {
-  font-size: 0.875rem;
+  font-size: 0.8rem;
   color: var(--md-sys-color-on-surface-variant);
+  line-height: 1.4;
 }
 
 .config-input {
@@ -162,11 +181,12 @@
   border: 1px solid var(--md-sys-color-outline-variant);
   border-radius: var(--border-radius-s);
   color: var(--md-sys-color-on-surface);
-  font-size: 1rem;
+  font-size: 0.95rem;
   font-family: inherit;
   text-align: right;
   outline: none;
   transition: all 0.2s ease;
+  flex-shrink: 0;
 }
 
 .config-input:focus {
@@ -175,23 +195,34 @@
   background-color: var(--md-sys-color-surface);
 }
 
+.config-input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .config-select {
   padding: 8px 12px;
   background-color: var(--md-sys-color-surface-container-high);
   border: 1px solid var(--md-sys-color-outline-variant);
   border-radius: var(--border-radius-s);
   color: var(--md-sys-color-on-surface);
-  font-size: 1rem;
+  font-size: 0.95rem;
   font-family: inherit;
   outline: none;
   cursor: pointer;
   transition: all 0.2s ease;
+  flex-shrink: 0;
 }
 
 .config-select:focus {
   border-color: var(--md-sys-color-primary);
   box-shadow: 0 0 0 2px rgba(var(--md-sys-color-primary-rgb), 0.2);
   background-color: var(--md-sys-color-surface);
+}
+
+.config-select:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 #advanced-section .config-input {
@@ -222,6 +253,11 @@
   background-color: var(--md-sys-color-surface);
 }
 
+.config-textarea:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .config-input-wide {
   width: 140px;
 }
@@ -229,7 +265,7 @@
 .config-item-expand {
   display: flex;
   flex-direction: column;
-  margin-top: var(--spacing-s);
+  margin-top: 8px;
   max-height: 0;
   overflow: hidden;
   opacity: 0;
@@ -237,9 +273,13 @@
 }
 
 .config-item-expand.show {
-  max-height: 400px;
+  max-height: 500px;
   opacity: 1;
-  margin-bottom: var(--spacing-m);
+  margin-bottom: 8px;
+  padding: 12px;
+  background-color: rgba(var(--md-sys-color-primary-rgb), 0.04);
+  border-radius: var(--border-radius-s);
+  border: 1px solid rgba(var(--md-sys-color-primary-rgb), 0.1);
 }
 
 /* HDR / 配置提示条 */
@@ -247,11 +287,11 @@
   display: flex;
   align-items: flex-start;
   gap: 6px;
-  margin-top: 10px;
-  padding: 8px 10px;
-  background-color: rgba(var(--md-sys-color-primary-rgb), 0.06);
+  margin-top: 12px;
+  padding: 10px 12px;
+  background-color: rgba(var(--md-sys-color-primary-rgb), 0.08);
   border-radius: var(--border-radius-s);
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   color: var(--md-sys-color-on-surface-variant);
   line-height: 1.5;
 }
@@ -260,6 +300,11 @@
   flex-shrink: 0;
   margin-top: 1px;
   opacity: 0.7;
+}
+
+/* Button loading text */
+.loading-text {
+  font-size: 0.875rem;
 }
 
 /* Custom Time Picker Styles */
@@ -280,15 +325,19 @@
 }
 
 .time-input {
-  width: 32px;
+  width: 36px;
   background-color: transparent;
   color: var(--md-sys-color-on-surface);
   border: none;
-  font-size: 0.875rem;
+  font-size: 0.9rem;
   text-align: center;
   font-family: 'Geist Mono', monospace;
   outline: none;
   -moz-appearance: textfield;
+}
+
+.time-input:disabled {
+  opacity: 0.5;
 }
 
 .time-input::-webkit-outer-spin-button,
@@ -355,13 +404,13 @@ input:checked + .slider:before {
 .status-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: var(--spacing-m);
+  gap: 10px;
   margin-top: var(--spacing-m);
 }
 
 .status-item {
   background-color: var(--md-sys-color-surface-container);
-  padding: var(--spacing-m);
+  padding: 14px;
   border-radius: var(--border-radius-m);
   display: flex;
   flex-direction: column;
@@ -401,7 +450,7 @@ input:checked + .slider:before {
 
 /* Brightness Section */
 .brightness-section {
-  margin-top: var(--spacing-l);
+  margin-top: var(--spacing-m);
   padding: var(--spacing-m);
   background: linear-gradient(
     135deg,
@@ -447,7 +496,7 @@ input:checked + .slider:before {
 .brightness-label {
   font-size: 0.75rem;
   color: var(--md-sys-color-on-surface-variant);
-  min-width: 24px;
+  min-width: 28px;
   text-align: center;
   font-weight: 500;
 }
@@ -457,23 +506,27 @@ input:checked + .slider:before {
   flex: 1;
   height: 24px;
   border-radius: 12px;
-  /* 背景将由 JS 通过 linear-gradient 动态更新实现进度条效果 */
   background: var(--md-sys-color-surface-container-high);
   outline: none;
   -webkit-appearance: none;
   appearance: none;
-  cursor: grab;
+  cursor: pointer;
   transition:
     background 0.35s ease,
     height 0.2s,
     box-shadow 0.2s;
   border: 1px solid rgba(255, 255, 255, 0.03);
   box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.2);
-  overflow: hidden; /* 确保进度条颜色不溢出圆角 */
+  overflow: hidden;
 }
 
 .brightness-slider:hover {
   height: 28px;
+}
+
+.brightness-slider:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 
 .brightness-slider::-webkit-slider-thumb {
@@ -572,11 +625,13 @@ input:checked + .slider:before {
   cursor: pointer;
   transition:
     background-color 0.2s,
-    opacity 0.2s;
+    opacity 0.2s,
+    transform 0.1s;
 }
 
 .btn:active {
   opacity: 0.8;
+  transform: scale(0.97);
 }
 
 .btn-primary {
@@ -610,6 +665,7 @@ input:checked + .slider:before {
 
 .btn-text-s:active {
   background-color: var(--md-sys-color-surface-container-high);
+  transform: scale(0.96);
 }
 
 .btn-danger {
@@ -636,6 +692,11 @@ input:checked + .slider:before {
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: transform 0.15s;
+}
+
+.btn-icon-only:active {
+  transform: scale(0.9);
 }
 
 .btn-icon-only-s {
