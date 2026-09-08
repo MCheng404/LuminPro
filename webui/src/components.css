@@ -228,7 +228,7 @@
 
 .config-item-expand {
   display: flex;
-  justify-content: flex-end;
+  flex-direction: column;
   margin-top: var(--spacing-s);
   max-height: 0;
   overflow: hidden;
@@ -237,9 +237,29 @@
 }
 
 .config-item-expand.show {
-  max-height: 100px; /* 调整为适合内容的高度 */
+  max-height: 400px;
   opacity: 1;
   margin-bottom: var(--spacing-m);
+}
+
+/* HDR / 配置提示条 */
+.config-hint {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin-top: 10px;
+  padding: 8px 10px;
+  background-color: rgba(var(--md-sys-color-primary-rgb), 0.06);
+  border-radius: var(--border-radius-s);
+  font-size: 0.8rem;
+  color: var(--md-sys-color-on-surface-variant);
+  line-height: 1.5;
+}
+
+.config-hint svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+  opacity: 0.7;
 }
 
 /* Custom Time Picker Styles */
