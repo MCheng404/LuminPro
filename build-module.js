@@ -9,10 +9,10 @@ const versionMatch = propContent.match(/^version=(.*)$/m)
 const versionCodeMatch = propContent.match(/^versionCode=(.*)$/m)
 
 const version = versionMatch ? versionMatch[1].trim() : 'Unknown'
-const versionCodeStr = versionCodeMatch ? versionCodeMatch[1].trim() : '0000'
+const versionCodeStr = versionCodeMatch[1].trim() : '0000'
 const versionCode = parseInt(versionCodeStr, 10)
 
-const zipName = `LuminPro_${version}.zip`
+const zipName = `LuminMax_${version}.zip`
 
 // --- 新增: 自动同步 update.json ---
 const updateJsonPath = 'update.json'
@@ -21,8 +21,8 @@ if (fs.existsSync(updateJsonPath)) {
     const updateJson = JSON.parse(fs.readFileSync(updateJsonPath, 'utf-8'))
     updateJson.versionCode = versionCode
     updateJson.version = version
-    updateJson.zipUrl = `https://share.yule.ink/magisk/mod/luminpro/module/${zipName}`
-    updateJson.changelog = `https://raw.githubusercontent.com/YuleBest/LuminPro/main/changelog.md`
+    updateJson.zipUrl = `https://github.com/MCheng404/LuminPro/releases/latest/download/${zipName}`
+    updateJson.changelog = `https://raw.githubusercontent.com/MCheng404/LuminPro/main/changelog.md`
     fs.writeFileSync(updateJsonPath, JSON.stringify(updateJson, null, 4), 'utf-8')
     console.log(`>>> [1/3] 已同步 update.json (版本: ${version}, Code: ${versionCode})`)
   } catch (e) {
