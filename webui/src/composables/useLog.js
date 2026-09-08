@@ -59,7 +59,7 @@ export function useLog() {
     if (isExporting.value) return
     isExporting.value = true
     try {
-      const res = await runCmd(`cp "${LOG_FILE}" "/sdcard/LuminPro_$(date '+%Y%m%d_%H%M%S').log"`)
+      const res = await runCmd(`cp "${LOG_FILE}" "/sdcard/LuminMax_$(date '+%Y%m%d_%H%M%S').log"`)
       toast(res.errno === 0 ? '日志已导出到 /sdcard' : '导出失败: ' + (res.stderr || '未知错误'))
     } finally {
       isExporting.value = false
