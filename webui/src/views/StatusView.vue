@@ -18,8 +18,10 @@ import {
 const status = inject('status')
 const showToast = inject('showToast')
 const config = inject('config')
+const globalBusy = inject('globalBusy')
 
 const confirmedLowBri = ref(false)
+const isRefreshing = ref(false)
 
 // --------- 亮度滑条渐变 ----------
 const sliderStyle = computed(() => {
@@ -45,6 +47,7 @@ const brightnessPercent = computed(() => {
 })
 
 async function onSliderChange(e) {
+  if (globalBusy?.value) return
   const newBri = parseInt(e.target.value, 10)
   const sysMax = parseInt(status.sysMaxBri.value) || 255
   const pct = Math.round((newBri / sysMax) * 100)
@@ -61,6 +64,16 @@ async function onSliderChange(e) {
   await status.setBrightness(newBri, showToast)
 }
 
+async function handleRefresh() {
+  if (isRefreshing.value) return
+  isRefreshing.value = true
+  try {
+    await status.load(true)
+  } finally {
+    isRefreshing.value = false
+  }
+}
+
 const statusItems = computed(() => [
   { label: '当前亮度', value: status.currentBri.value || '—', icon: SunMedium },
   { label: '系统最大亮度', value: status.sysMaxBri.value || '—', icon: Smartphone },
@@ -75,7 +88,7 @@ const statusItems = computed(() => [
   <section class="card" id="status-section" data-nav-group="status">
     <div class="card-header">
       <h2>实时状态</h2>
-      <Button variant="ghost" size="icon" @click="status.load(true)">
+      <Button variant="ghost" size="icon" @click="handleRefresh" :loading="isRefreshing">
         <RefreshCw :size="18" />
       </Button>
     </div>
@@ -106,6 +119,7 @@ const statusItems = computed(() => [
           :max="status.sysMaxBri.value || 255"
           :value="status.currentBri.value || 0"
           :style="sliderStyle"
+          :disabled="globalBusy"
           @change="onSliderChange"
         />
         <span class="brightness-label">100%</span>
@@ -114,6 +128,7 @@ const statusItems = computed(() => [
         <span class="auto-brightness-label">自动亮度调节</span>
         <Switch
           :model-value="status.autoBriMode.value"
+          :disabled="globalBusy"
           @update:model-value="status.setAutoBrightness($event, showToast)"
         />
       </div>
