@@ -68,11 +68,10 @@
   overflow-y: auto;
   border-radius: var(--border-radius-m);
   padding: 0;
-  /* 性能优化：渲染隔离 + GPU 惯性滚动 */
-  contain: strict;
+  /* 性能优化：渲染隔离（不含 size，避免 max-height 容器塌陷）+ GPU 惯性滚动 */
+  contain: layout paint;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
-  transform: translateZ(0);
 }
 
 .app-list-container::-webkit-scrollbar {
@@ -88,9 +87,6 @@
   flex-shrink: 0;
   /* 性能优化：独立布局/绘制层，避免滚动时整页重排 */
   contain: layout paint;
-  transform: translateZ(0);
-  -webkit-transform: translateZ(0);
-  will-change: transform;
 }
 
 .app-item-main-row {

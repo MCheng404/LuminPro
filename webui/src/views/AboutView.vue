@@ -1,121 +1,101 @@
 <script setup>
-import { inject, ref, onMounted } from 'vue'
+import { ref } from 'vue'
+import MarkdownIt from 'markdown-it'
 import Button from '@/components/ui/Button.vue'
+import { BookOpen, ScrollText, StickyNote, X, Github } from 'lucide-vue-next'
 import { runCmd, MODULE_DIR } from '../utils.js'
-import { ExternalLink, Github, BookOpen, ChevronLeft, Loader2 } from 'lucide-vue-next'
 
-const showToast = inject('showToast')
-const config = inject('config')
-
-const moduleInfo = ref({})
-const sheetVisible = ref(false)
-const sheetLoading = ref(false)
-const sheetContent = ref('')
+const sheetOpen = ref(false)
 const sheetTitle = ref('')
+const sheetContent = ref('')
+const sheetLoading = ref(false)
 
-async function loadModuleInfo() {
-  try {
-    const res = await runCmd(`cat ${MODULE_DIR}/module.prop`)
-    if (res.errno === 0) {
-      const lines = res.stdout.trim().split('\n')
-      lines.forEach((line) => {
-        const [key, ...val] = line.split('=')
-        if (key && val.length) moduleInfo.value[key.trim()] = val.join('=').trim()
-      })
-    }
-  } catch {}
-}
+const md = new MarkdownIt({ html: true, linkify: true, typographer: true })
 
-async function openDoc(title, file) {
-  sheetTitle.value = title
-  sheetVisible.value = true
-  sheetLoading.value = true
+const moduleDocs = [
+  { title: 'README', file: `${MODULE_DIR}/README.md`, icon: BookOpen, md: true },
+  { title: 'README (EN)', file: `${MODULE_DIR}/README_en.md`, icon: BookOpen, md: true },
+  { title: '更新日志', file: `${MODULE_DIR}/changelog.md`, icon: ScrollText, md: true },
+  { title: 'NOTE', file: `${MODULE_DIR}/NOTE.txt`, icon: StickyNote, md: false },
+]
+
+async function openModuleDoc(doc) {
+  sheetTitle.value = doc.title
   sheetContent.value = ''
+  sheetLoading.value = true
+  sheetOpen.value = true
   try {
-    const res = await runCmd(`cat ${MODULE_DIR}/${file}`)
-    sheetContent.value = res.errno === 0 ? res.stdout : '读取失败'
-  } catch {
-    sheetContent.value = '读取失败'
+    const res = await runCmd(`cat "${doc.file}" 2>/dev/null`)
+    if (res.errno !== 0 || !res.stdout.trim()) throw new Error('文件不存在或为空')
+    sheetContent.value = doc.md
+      ? md.render(res.stdout)
+      : res.stdout
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/\n/g, '<br>')
+  } catch (e) {
+    sheetContent.value = `加载失败: ${e.message}`
   } finally {
     sheetLoading.value = false
   }
 }
 
 function closeSheet() {
-  sheetVisible.value = false
+  sheetOpen.value = false
 }
-
-onMounted(() => {
-  loadModuleInfo()
-})
 </script>
 
 <template>
   <div style="display: contents">
     <section class="card" id="about-section">
-      <div class="card-header">
-        <h2>关于</h2>
-      </div>
-
-      <div class="about-module-info">
-        <div class="about-module-icon">💡</div>
-        <div class="about-module-text">
-          <h3>{{ moduleInfo.name || 'LuminMax' }}</h3>
-          <p>版本 {{ moduleInfo.version || '20260908' }}</p>
-          <p class="about-author">作者: {{ moduleInfo.author || 'Maocat（二改）& 酷安@Yule' }}</p>
-        </div>
-      </div>
-
-      <div class="about-desc">
-        <p>
-          LuminMax 是一个基于 KernelSU 的屏幕亮度强化模块，通过事件驱动架构突破前台亮度上限，
-          将屏幕拉至硬件峰值亮度。支持 HDR 场景智能休眠、应用黑名单、按活动屏蔽等功能。
-        </p>
-      </div>
-
-      <div class="about-links">
-        <a
-          class="about-link-item"
-          href="https://github.com/MCheng404/LuminPro"
-          target="_blank"
-          rel="noopener noreferrer"
+      <!-- 模块文档 -->
+      <div class="about-section-title">模块文档</div>
+      <div class="about-list">
+        <button
+          v-for="doc in moduleDocs"
+          :key="doc.file"
+          class="about-list-item"
+          @click="openModuleDoc(doc)"
         >
-          <Github :size="18" />
-          <span>GitHub 仓库</span>
-          <ExternalLink :size="14" class="about-link-arrow" />
-        </a>
-        <button class="about-link-item" @click="openDoc('使用说明', 'README.md')">
-          <BookOpen :size="18" />
-          <span>使用说明</span>
-        </button>
-        <button class="about-link-item" @click="openDoc('更新日志', 'changelog.md')">
-          <BookOpen :size="18" />
-          <span>更新日志</span>
+          <component :is="doc.icon" :size="18" class="about-list-icon" />
+          <span>{{ doc.title }}</span>
         </button>
       </div>
 
-      <div class="about-actions">
-        <Button variant="outline" @click="config.resetWebUI(showToast)">重置 WebUI 设置</Button>
+      <!-- 链接列表 -->
+      <div class="about-section-title">链接</div>
+      <div class="about-list">
+        <button
+          class="about-list-item"
+          @click="
+            runCmd(
+              'am start -a android.intent.action.VIEW -d \'https://github.com/MCheng404/LuminPro\'',
+            )
+          "
+        >
+          <Github :size="18" class="about-list-icon" />
+          <span>GitHub 项目主页</span>
+        </button>
       </div>
 
       <p class="about-footer">Made with ❤ by Maocat</p>
     </section>
 
-    <!-- 文档底部弹层 -->
+    <!-- 文档底部弹出抽屉 -->
     <Teleport to="body">
-      <div class="doc-sheet-overlay" :class="{ show: sheetVisible }" @click="closeSheet">
-        <div class="doc-sheet" @click.stop>
-          <div class="doc-sheet-header">
-            <button class="doc-sheet-close" @click="closeSheet">
-              <ChevronLeft :size="20" />
-            </button>
-            <span class="doc-sheet-title">{{ sheetTitle }}</span>
-          </div>
-          <div class="doc-sheet-body">
-            <div v-if="sheetLoading" class="doc-sheet-loading">加载中...</div>
-            <!-- eslint-disable-next-line vue/no-v-html -->
-            <div v-else class="doc-sheet-content" v-html="sheetContent"></div>
-          </div>
+      <div class="doc-sheet-backdrop" :class="{ show: sheetOpen }" @click="closeSheet"></div>
+      <div class="doc-sheet" :class="{ show: sheetOpen }">
+        <div class="doc-sheet-header">
+          <span class="doc-sheet-title">{{ sheetTitle }}</span>
+          <button class="doc-sheet-close" @click="closeSheet">
+            <X :size="20" />
+          </button>
+        </div>
+        <div class="doc-sheet-body">
+          <div v-if="sheetLoading" class="doc-sheet-loading">加载中...</div>
+          <!-- eslint-disable-next-line vue/no-v-html -->
+          <div v-else class="doc-sheet-content" v-html="sheetContent"></div>
         </div>
       </div>
     </Teleport>

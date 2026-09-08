@@ -16,12 +16,10 @@
   line-height: 1.5;
   scrollbar-width: thin;
   scrollbar-color: var(--md-sys-color-outline-variant) transparent;
-  /* 性能优化：渲染隔离 + GPU 惯性滚动 */
-  contain: strict;
+  /* 性能优化：渲染隔离（不含 size）+ GPU 惯性滚动 */
+  contain: layout paint;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
-  transform: translateZ(0);
-  -webkit-transform: translateZ(0);
 }
 
 .log-output::-webkit-scrollbar {
