@@ -40,9 +40,17 @@ _基于 KernelSU WebUI + Rust 事件驱动架构_
 - **智能跳过机制**  
   以下情况模块将自动跳过本次提升，避免干扰正常使用：
   - 系统自动亮度已启用
-  - 当前正在播放 HDR 内容（可配置）
+  - 当前正在播放 HDR 内容（可配置，采用双阈值状态机避免忽明忽暗）
   - 当前前台应用在黑名单中
   - 处于配置的休眠时段内
+
+- **HDR 智能状态机**  
+  播放 HDR 内容时，模块采用**双阈值滞后 + 冷却期**的状态机机制：
+  - 进入 HDR：`hdrSdrRatio` 超过进入阈值（默认 1.10）时确认 HDR 状态
+  - 退出 HDR：`hdrSdrRatio` 低于退出阈值（默认 1.03）时才退出，中间区域保持当前状态
+  - 冷却期：进入 HDR 后持续 N 秒（默认 8 秒）内不再重复检测，避免比率波动导致振荡
+  - 进入 HDR 时自动平滑恢复亮度到阈值以下，避免峰值亮度干扰 HDR 显示效果
+  - 彻底解决 HDR 场景下亮度忽明忽暗的问题
 
 - **应用黑名单**  
   在 WebUI 的「应用」页面中管理黑名单，支持按包名搜索、Activity 精准匹配（可通过内置扫描工具自动获取前台 Activity 名）。黑名单内的应用处于前台时，模块不执行亮度提升。
@@ -64,6 +72,9 @@ _基于 KernelSU WebUI + Rust 事件驱动架构_
 | `sleep_time`        | 休眠时段，格式 `HHMM-HHMM`      | 空（禁用）        |
 | `auto_bri_sleep`    | 自动亮度开启时跳过              | `1`（启用）       |
 | `display_hdr_sleep` | HDR 内容时跳过                  | `0`（禁用）       |
+| `hdr_enter_threshold` | HDR 进入阈值（hdrSdrRatio 大于此值确认 HDR） | `1.10` |
+| `hdr_exit_threshold`  | HDR 退出阈值（hdrSdrRatio 小于此值退出 HDR） | `1.03` |
+| `hdr_cooldown`      | HDR 状态冷却期（秒），期间保持跳过 | `8`           |
 | `log_level`         | 日志等级（off/error/warn/info） | `info`            |
 | `log_max_size`      | 日志文件大小上限（KB）          | `512`             |
 | `now_bri_file`      | 当前亮度节点路径                | 标准 panel0 路径  |
@@ -84,4 +95,6 @@ _基于 KernelSU WebUI + Rust 事件驱动架构_
 > 长期维持峰值亮度会显著加剧 OLED 屏幕老化与烧屏风险，并大幅增加设备发热与耗电。请根据使用场景合理配置，切勿超出设备硬件安全范围。
 
 - 确保填写的亮度数值在设备硬件支持的安全范围内。
+- HDR 跳过功能默认关闭，需在 WebUI 中手动开启 `display_hdr_sleep`。
+- 若 HDR 场景仍有轻微波动，可适当调大 `hdr_enter_threshold`（如 1.15）或延长 `hdr_cooldown`（如 12）。
 - 遇到问题时，请通过 WebUI 日志页导出运行日志后反馈至社区。
