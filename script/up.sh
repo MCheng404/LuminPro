@@ -78,6 +78,11 @@ auto_bri_sleep="$(get_cfg auto_bri_sleep 1)"
 display_hdr_sleep="$(get_cfg display_hdr_sleep 0)"
 steps_num="$(get_cfg steps_num 50)"
 
+# HDR 相关配置（双阈值滞后 + 冷却期）
+hdr_enter_threshold="$(get_cfg hdr_enter_threshold 1.10)"
+hdr_exit_threshold="$(get_cfg hdr_exit_threshold 1.03)"
+hdr_cooldown="$(get_cfg hdr_cooldown 8)"
+
 # 解析休眠时间
 sleep_start="${sleep_time%-*}"
 sleep_end="${sleep_time#*-}"
@@ -95,6 +100,32 @@ IS_SLEEP_TIME() {
 }
 
 target_bri="$max_bri"
+
+# 平滑渐变调整亮度
+# 参数: $1=起始亮度 $2=目标亮度 $3=步数
+fade_brightness() {
+    local start_bri="$1" end_bri="$2" steps="$3"
+    local bri_diff step_value step
+
+    bri_diff="$((end_bri - start_bri))"
+    if [ "$bri_diff" -eq 0 ]; then
+        return 0
+    fi
+
+    step_value="$((bri_diff / steps))"
+    if [ "$step_value" -eq 0 ]; then
+        # 差值过小，直接设定
+        echo -n "$end_bri" >"$now_bri_file" 2>/dev/null
+        return $?
+    fi
+
+    for step in $(seq 1 "$steps"); do
+        echo -n $((start_bri + step * step_value)) >"$now_bri_file" 2>/dev/null
+        sleep 0.02
+    done
+    echo -n "$end_bri" >"$now_bri_file" 2>/dev/null
+    return $?
+}
 
 update_all() {
     local step
@@ -135,6 +166,98 @@ CHECK_BRI() {
     return 1
 }
 
+# ── HDR 状态机检测 ──────────────────────────────────────────────
+# 使用双阈值滞后机制避免边界振荡：
+#   - 比率 > hdr_enter_threshold → 进入 HDR 状态
+#   - 比率 < hdr_exit_threshold  → 退出 HDR 状态
+#   - 两者之间 → 保持当前状态不变
+# 状态持久化在 hdr.state 文件中，格式: "状态|时间戳"
+# 进入 HDR 时平滑恢复亮度，避免峰值亮度停留在 HDR 场景
+CHECK_HDR() {
+    local hdr_state_file="$PID_DIR/hdr.state"
+    local current_state="inactive"
+    local state_time=0
+
+    # 读取持久化状态
+    if [ -f "$hdr_state_file" ]; then
+        local saved_state saved_time
+        saved_state="$(cut -d'|' -f1 "$hdr_state_file" 2>/dev/null)"
+        saved_time="$(cut -d'|' -f2 "$hdr_state_file" 2>/dev/null)"
+        if [ "$saved_state" = "active" ] || [ "$saved_state" = "inactive" ]; then
+            current_state="$saved_state"
+            state_time="${saved_time:-0}"
+        fi
+    fi
+
+    local now
+    now="$(date +%s)"
+
+    # 冷却期内：保持当前状态，不重新检测
+    if [ "$current_state" = "active" ]; then
+        local elapsed=$((now - state_time))
+        if [ "$elapsed" -lt "$hdr_cooldown" ]; then
+            _log "HDR 状态冷却期内 (${elapsed}s / ${hdr_cooldown}s)，保持跳过" "INFO"
+            return 0
+        fi
+    fi
+
+    # 读取当前 hdrSdrRatio
+    local hdr_ratio
+    hdr_ratio="$(dumpsys display 2>/dev/null | sed -n 's/.*hdrSdrRatio \([0-9.]*\).*/\1/p' | head -n 1)"
+
+    # 读不到比率时视为 1.0（非 HDR），不再使用可能过时的缓存
+    if ! echo "$hdr_ratio" | grep -qE '^[0-9]+\.[0-9]+$'; then
+        hdr_ratio="1.00"
+    fi
+
+    local hdr_ratio_rounded
+    hdr_ratio_rounded="$(awk "BEGIN{printf \"%.2f\", $hdr_ratio}")"
+
+    local new_state="$current_state"
+
+    # 双阈值滞后判断
+    if awk "BEGIN{exit !($hdr_ratio_rounded > $hdr_enter_threshold)}" 2>/dev/null; then
+        # 超过进入阈值 → 进入 HDR
+        new_state="active"
+    elif awk "BEGIN{exit !($hdr_ratio_rounded < $hdr_exit_threshold)}" 2>/dev/null; then
+        # 低于退出阈值 → 退出 HDR
+        new_state="inactive"
+    fi
+    # 中间区域：保持 current_state 不变
+
+    # 状态发生变化
+    if [ "$new_state" != "$current_state" ]; then
+        if [ "$new_state" = "active" ]; then
+            _log "HDR 状态切换: 进入 HDR (比率: $hdr_ratio_rounded > 阈值: $hdr_enter_threshold)" "WARN"
+            # 进入 HDR 时，如果当前亮度已被提升，平滑恢复到触发阈值以下
+            local cur_bri
+            cur_bri="$(cat "$now_bri_file" 2>/dev/null)"
+            if [ -n "$cur_bri" ] && [ "$cur_bri" -gt "$ui_max_bri" ] && [ "$ui_max_bri" -gt 0 ]; then
+                local restore_bri=$((ui_max_bri - 1))
+                [ "$restore_bri" -lt 0 ] && restore_bri=0
+                _log "HDR 场景下恢复亮度: $cur_bri → $restore_bri (避免峰值亮度干扰 HDR 显示)" "INFO"
+                fade_brightness "$cur_bri" "$restore_bri" "$steps_num"
+            fi
+        else
+            _log "HDR 状态切换: 退出 HDR (比率: $hdr_ratio_rounded < 阈值: $hdr_exit_threshold)" "INFO"
+        fi
+        # 持久化新状态
+        echo "${new_state}|${now}" >"$hdr_state_file"
+    else
+        # 状态未变，更新时间戳（active 状态用于冷却计时）
+        if [ "$new_state" = "active" ]; then
+            echo "${new_state}|${now}" >"$hdr_state_file"
+        fi
+    fi
+
+    if [ "$new_state" = "active" ]; then
+        _log "HDR 内容播放中 (比率: $hdr_ratio_rounded)，跳过亮度提升" "INFO"
+        return 0
+    fi
+
+    return 1
+}
+
 MAIN() {
     if IS_SLEEP_TIME; then
         _log "处于休眠时段 ($sleep_start-$sleep_end)，跳过提升" "INFO"
@@ -166,37 +289,10 @@ MAIN() {
         fi
     fi
 
-    # 显示 HDR 内容时休眠
+    # HDR 状态机检测（双阈值滞后 + 冷却期 + 进入时恢复亮度）
     if [ "$display_hdr_sleep" = "1" ]; then
-        local hdr_flag_file="$PID_DIR/hdr.flag"
-        if [ -f "$hdr_flag_file" ]; then
-            local flag_time now
-            flag_time="$(cat "$hdr_flag_file")"
-            now="$(date +%s)"
-            if awk "BEGIN{exit !(($now - $flag_time) < 2)}" 2>/dev/null; then
-                _log "HDR 冷却期内，跳过提升" "INFO"
-                return
-            else
-                rm -f "$hdr_flag_file"
-            fi
-        fi
-        local hdr_ratio
-        local hdr_cache_file="$PID_DIR/.hdr_ratio_cache"
-        hdr_ratio="$(dumpsys display 2>/dev/null | sed -n 's/.*hdrSdrRatio \([0-9.]*\).*/\1/p' | head -n 1)"
-        if echo "$hdr_ratio" | grep -qE '^[0-9]+\.[0-9]+$'; then
-            echo -n "$hdr_ratio" >"$hdr_cache_file"
-        elif [ -f "$hdr_cache_file" ]; then
-            hdr_ratio="$(cat "$hdr_cache_file")"
-            _log "HDR 比率读取为空，使用缓存值: $hdr_ratio" "INFO"
-        fi
-        if echo "$hdr_ratio" | grep -qE '^[0-9]+\.[0-9]+$'; then
-            local hdr_ratio_rounded
-            hdr_ratio_rounded="$(awk "BEGIN{printf \"%.2f\", $hdr_ratio}")"
-            if awk "BEGIN{exit !($hdr_ratio_rounded > 1.00)}" 2>/dev/null; then
-                _log "检测到 HDR 内容 (比率: $hdr_ratio_rounded)，跳过提升" "INFO"
-                date +%s >"$hdr_flag_file"
-                return
-            fi
+        if CHECK_HDR; then
+            return
         fi
     fi
 
