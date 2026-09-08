@@ -181,7 +181,7 @@ function handleSaveWebUI() {
           <div class="config-item">
             <div class="config-label">
               <span class="config-name">HDR 冷却期</span>
-              <span class="config-desc">进入 HDR 后保持跳过的秒数（默认 8）</span>
+              <span class="config-desc">状态切换后保持的秒数（默认 8）</span>
             </div>
             <Input
               v-model="config.hdrCooldown.value"
@@ -343,7 +343,7 @@ function handleSaveWebUI() {
 
             <div class="config-item">
               <div class="config-label">
-                <span class="config-name">lumipro 监听事件</span>
+                <span class="config-name">luminmax 监听事件</span>
                 <span class="config-desc">默认 c，改后需重启</span>
                 <button
                   class="btn-text-s"
