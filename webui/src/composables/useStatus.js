@@ -1,6 +1,7 @@
 import { ref, computed } from 'vue'
 import {
   runCmd,
+  runCmdSilent,
   readConfig,
   PID_FILE,
   STOP_FLAG_FILE,
@@ -36,6 +37,10 @@ export function useStatus() {
   // 自动亮度
   const autoBriMode = ref(false)
 
+  // 操作中状态（供 UI 显示 loading）
+  const isToggling = ref(false)
+  const isRestarting = ref(false)
+
   // 缓存配置字段（避免每次刷新都 readConfig）
   let _nowBriFile = null
   let _sysMaxBriFile = null
@@ -60,19 +65,18 @@ export function useStatus() {
 
     const needBri = forceFull || currentBri.value === null || sysMaxBri.value === null
 
-    // 所有 Shell 命令一次并发，消除多轮顺序等待
-    // PID + 进程状态合并为一条命令以减少 exec 次数
+    // 所有 Shell 命令一次并发，使用静默执行不触发 busy 锁
     const [pidStateRes, stopRes, autoBriRes, hdrRes, cBriRes, sBriRes] = await Promise.all([
-      runCmd(
+      runCmdSilent(
         `PID=$(cat "${PID_FILE}" 2>/dev/null || true); printf '%s\\n' "$PID"; [ -n "$PID" ] && grep '^State:' "/proc/$PID/status" 2>/dev/null | awk '{print $2}' || true`,
       ),
-      runCmd(`[ -f "${STOP_FLAG_FILE}" ] && echo "1" || echo "0"`),
-      runCmd(`settings get system screen_brightness_mode`),
-      runCmd(
+      runCmdSilent(`[ -f "${STOP_FLAG_FILE}" ] && echo "1" || echo "0"`),
+      runCmdSilent(`settings get system screen_brightness_mode`),
+      runCmdSilent(
         `dumpsys display 2>/dev/null | sed -n 's/.*hdrSdrRatio \\([0-9.]*\\).*/\\1/p' | head -n 1`,
       ),
-      needBri ? runCmd(`cat "${_nowBriFile}"`) : Promise.resolve({ errno: -1, stdout: '' }),
-      needBri ? runCmd(`cat "${_sysMaxBriFile}"`) : Promise.resolve({ errno: -1, stdout: '' }),
+      needBri ? runCmdSilent(`cat "${_nowBriFile}"`) : Promise.resolve({ errno: -1, stdout: '' }),
+      needBri ? runCmdSilent(`cat "${_sysMaxBriFile}"`) : Promise.resolve({ errno: -1, stdout: '' }),
     ])
 
     if (needBri) {
@@ -112,22 +116,38 @@ export function useStatus() {
   }
 
   async function toggleService(toast) {
-    const res = await runCmd(`sh /data/adb/modules/LuminPro/action.sh`)
-    toast(res.errno === 0 ? res.stdout.trim() || '状态已切换' : '操作失败: ' + res.stderr)
-    await load(true)
+    if (isToggling.value) return
+    isToggling.value = true
+    try {
+      const res = await runCmd(`sh /data/adb/modules/LuminPro/action.sh`)
+      toast(res.errno === 0 ? res.stdout.trim() || '状态已切换' : '操作失败: ' + res.stderr)
+      // 延迟刷新，给服务启动/停止留出时间
+      setTimeout(async () => {
+        await load(true)
+      }, 800)
+    } finally {
+      isToggling.value = false
+    }
   }
 
   async function restartService(toast) {
+    if (isRestarting.value) return
+    isRestarting.value = true
     toast('正在重启服务...')
-    const res = await runCmd(`sh /data/adb/modules/LuminPro/script/restart.sh`)
-    setTimeout(async () => {
-      await load(true)
-    }, 1000)
-    toast(res.errno === 0 ? '服务已成功重启' : '重启失败: ' + res.stderr)
+    try {
+      const res = await runCmd(`sh /data/adb/modules/LuminPro/script/restart.sh`)
+      toast(res.errno === 0 ? '服务已成功重启' : '重启失败: ' + res.stderr)
+      // 延迟刷新，给服务重启留出时间
+      setTimeout(async () => {
+        await load(true)
+      }, 1500)
+    } finally {
+      isRestarting.value = false
+    }
   }
 
   async function setBrightness(newBri, toast) {
-    currentBri.value = String(newBri)
+    currentBri.value = String(newBri) // 乐观更新，立即响应
     const cmd = `echo -n '${newBri}' > '${_nowBriFile}' 2>/dev/null && echo 'OK'`
     const res = await runCmd(cmd)
     if (!(res.errno === 0 && res.stdout.includes('OK'))) {
@@ -138,12 +158,13 @@ export function useStatus() {
 
   async function setAutoBrightness(enabled, toast) {
     const mode = enabled ? 1 : 0
+    autoBriMode.value = enabled // 乐观更新
     const res = await runCmd(`settings put system screen_brightness_mode ${mode}`)
-    if (res.errno === 0) {
-      autoBriMode.value = enabled
-      toast(enabled ? '自动亮度已启用' : '手动亮度已启用')
-    } else {
+    if (res.errno !== 0) {
+      autoBriMode.value = !enabled // 回滚
       toast('设置失败: ' + (res.stderr || '未知错误'))
+    } else {
+      toast(enabled ? '自动亮度已启用' : '手动亮度已启用')
     }
   }
 
@@ -159,6 +180,8 @@ export function useStatus() {
     hdrRatio,
     sleepStatus,
     autoBriMode,
+    isToggling,
+    isRestarting,
     load,
     invalidatePaths,
     toggleService,
