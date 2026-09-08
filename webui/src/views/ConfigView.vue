@@ -14,12 +14,14 @@ import {
   Monitor,
   HelpCircle,
   ChevronDown,
+  Loader2,
 } from 'lucide-vue-next'
 import { runCmd } from '../utils.js'
 
 const config = inject('config')
 const showToast = inject('showToast')
 const restartRefresh = inject('restartRefresh')
+const globalBusy = inject('globalBusy')
 
 const advancedOpen = ref(false)
 const webuiOpen = ref(false)
@@ -96,7 +98,7 @@ function handleSaveWebUI() {
             <span class="config-name">前台最大亮度</span>
             <span class="config-desc">触发亮度提升的阈值</span>
           </div>
-          <Input v-model="config.uiMaxBri.value" type="number" min="0" class="config-input" />
+          <Input v-model="config.uiMaxBri.value" type="number" min="0" class="config-input" :disabled="globalBusy" />
         </div>
 
         <div class="config-item">
@@ -104,7 +106,7 @@ function handleSaveWebUI() {
             <span class="config-name">峰值最大亮度</span>
             <span class="config-desc">亮度提升的目标值</span>
           </div>
-          <Input v-model="config.maxBri.value" type="number" min="0" class="config-input" />
+          <Input v-model="config.maxBri.value" type="number" min="0" class="config-input" :disabled="globalBusy" />
         </div>
 
         <div class="config-item">
@@ -118,6 +120,7 @@ function handleSaveWebUI() {
             min="1"
             max="500"
             class="config-input"
+            :disabled="globalBusy"
           />
         </div>
       </div>
@@ -130,15 +133,15 @@ function handleSaveWebUI() {
             <span class="config-name">自动亮度时休眠</span>
             <span class="config-desc">开启自动亮度时不提升</span>
           </div>
-          <Switch v-model="config.autoBriSleep.value" />
+          <Switch v-model="config.autoBriSleep.value" :disabled="globalBusy" />
         </div>
 
         <div class="config-item">
           <div class="config-label">
             <span class="config-name">显示 HDR 内容时休眠</span>
-            <span class="config-desc">采用双阈值状态机，避免 HDR 场景忽明忽暗</span>
+            <span class="config-desc">双阈值状态机，避免 HDR 场景忽明忽暗</span>
           </div>
-          <Switch v-model="config.displayHdrSleep.value" />
+          <Switch v-model="config.displayHdrSleep.value" :disabled="globalBusy" />
         </div>
 
         <!-- HDR 高级参数（开启 HDR 休眠时展开） -->
@@ -146,7 +149,7 @@ function handleSaveWebUI() {
           <div class="config-item">
             <div class="config-label">
               <span class="config-name">HDR 进入阈值</span>
-              <span class="config-desc">hdrSdrRatio 大于此值确认 HDR（默认 1.10）</span>
+              <span class="config-desc">比率大于此值确认 HDR（默认 1.10）</span>
             </div>
             <Input
               v-model="config.hdrEnterThreshold.value"
@@ -155,13 +158,14 @@ function handleSaveWebUI() {
               min="1.01"
               max="5.00"
               class="config-input"
+              :disabled="globalBusy"
             />
           </div>
 
           <div class="config-item">
             <div class="config-label">
               <span class="config-name">HDR 退出阈值</span>
-              <span class="config-desc">hdrSdrRatio 小于此值退出 HDR（默认 1.03）</span>
+              <span class="config-desc">比率小于此值退出 HDR（默认 1.03）</span>
             </div>
             <Input
               v-model="config.hdrExitThreshold.value"
@@ -170,6 +174,7 @@ function handleSaveWebUI() {
               min="1.00"
               max="2.00"
               class="config-input"
+              :disabled="globalBusy"
             />
           </div>
 
@@ -184,12 +189,13 @@ function handleSaveWebUI() {
               min="2"
               max="60"
               class="config-input"
+              :disabled="globalBusy"
             />
           </div>
 
           <div class="config-hint">
             <HelpCircle :size="13" />
-            <span>双阈值滞后机制：比率在进入/退出阈值之间时保持当前状态，有效防止边界振荡。若仍有波动可调大进入阈值或延长冷却期。</span>
+            <span>双阈值滞后：比率在两阈值之间时保持当前状态，防止边界振荡。仍有波动可调大进入阈值或延长冷却期。</span>
           </div>
         </div>
 
@@ -201,7 +207,7 @@ function handleSaveWebUI() {
               >仅在事件驱动失效时开启，会略微增加耗电</span
             >
           </div>
-          <Switch v-model="config.compatibilityMode.value" />
+          <Switch v-model="config.compatibilityMode.value" :disabled="globalBusy" />
         </div>
 
         <div class="config-item">
@@ -209,7 +215,7 @@ function handleSaveWebUI() {
             <span class="config-name">定时休眠</span>
             <span class="config-desc">设定时段内不提升亮度</span>
           </div>
-          <Switch v-model="config.sleepMode.value" />
+          <Switch v-model="config.sleepMode.value" :disabled="globalBusy" />
         </div>
 
         <div class="config-item-expand" :class="{ show: config.sleepMode.value }">
@@ -222,6 +228,7 @@ function handleSaveWebUI() {
                 min="0"
                 max="23"
                 placeholder="00"
+                :disabled="globalBusy"
               />
               <span>:</span>
               <input
@@ -231,6 +238,7 @@ function handleSaveWebUI() {
                 min="0"
                 max="59"
                 placeholder="00"
+                :disabled="globalBusy"
               />
             </div>
             <span class="time-sep">至</span>
@@ -242,6 +250,7 @@ function handleSaveWebUI() {
                 min="0"
                 max="23"
                 placeholder="00"
+                :disabled="globalBusy"
               />
               <span>:</span>
               <input
@@ -251,6 +260,7 @@ function handleSaveWebUI() {
                 min="0"
                 max="59"
                 placeholder="00"
+                :disabled="globalBusy"
               />
             </div>
           </div>
@@ -270,6 +280,7 @@ function handleSaveWebUI() {
             min="1"
             max="10240"
             class="config-input"
+            :disabled="globalBusy"
           />
         </div>
 
@@ -278,7 +289,7 @@ function handleSaveWebUI() {
             <span class="config-name">日志等级</span>
             <span class="config-desc">低于此级别不写入日志</span>
           </div>
-          <select v-model="config.logLevel.value" class="config-select">
+          <select v-model="config.logLevel.value" class="config-select" :disabled="globalBusy">
             <option value="off">关闭</option>
             <option value="error">仅错误</option>
             <option value="warn">警告+</option>
@@ -291,11 +302,14 @@ function handleSaveWebUI() {
         <Button
           variant="outline"
           @click="handleReset"
+          :disabled="globalBusy"
           :class="resetConfirming ? 'border-destructive text-destructive' : ''"
         >
           {{ resetConfirming ? '确认恢复？' : '恢复默认' }}
         </Button>
-        <Button @click="config.save(showToast)"> <Save :size="15" /> 保存配置 </Button>
+        <Button @click="config.save(showToast)" :loading="config.isSaving.value" :disabled="globalBusy">
+          <Save :size="15" /> 保存配置
+        </Button>
       </div>
     </section>
 
@@ -324,7 +338,7 @@ function handleSaveWebUI() {
                   >需重启生效，用完请关闭</span
                 >
               </div>
-              <Switch v-model="config.debugMode.value" />
+              <Switch v-model="config.debugMode.value" :disabled="globalBusy" />
             </div>
 
             <div class="config-item">
@@ -344,6 +358,7 @@ function handleSaveWebUI() {
                 type="text"
                 placeholder="c"
                 class="config-input"
+                :disabled="globalBusy"
               />
             </div>
 
@@ -352,7 +367,7 @@ function handleSaveWebUI() {
                 <span class="config-name">当前亮度节点</span>
                 <span class="config-desc">改后需重启</span>
               </div>
-              <Textarea v-model="config.nowBriFile.value" class="config-textarea" />
+              <Textarea v-model="config.nowBriFile.value" class="config-textarea" :disabled="globalBusy" />
             </div>
 
             <div class="config-item">
@@ -360,12 +375,16 @@ function handleSaveWebUI() {
                 <span class="config-name">最大亮度节点</span>
                 <span class="config-desc">改后需重启</span>
               </div>
-              <Textarea v-model="config.sysMaxBriFile.value" class="config-textarea" />
+              <Textarea v-model="config.sysMaxBriFile.value" class="config-textarea" :disabled="globalBusy" />
             </div>
           </div>
 
           <div class="card-actions">
-            <Button @click="config.saveAdvanced(showToast, () => {})">
+            <Button
+              @click="config.saveAdvanced(showToast, () => {})"
+              :loading="config.isSavingAdvanced.value"
+              :disabled="globalBusy"
+            >
               <Save :size="15" /> 保存设置
             </Button>
           </div>
@@ -389,7 +408,7 @@ function handleSaveWebUI() {
                 <span class="config-name">自动刷新</span>
                 <span class="config-desc">定时拉取状态和日志</span>
               </div>
-              <Switch v-model="config.autoRefresh.value" />
+              <Switch v-model="config.autoRefresh.value" :disabled="globalBusy" />
             </div>
 
             <div class="config-item" v-show="config.autoRefresh.value">
@@ -402,6 +421,7 @@ function handleSaveWebUI() {
                 type="number"
                 min="100"
                 class="config-input"
+                :disabled="globalBusy"
               />
             </div>
 
@@ -413,6 +433,7 @@ function handleSaveWebUI() {
                 class="config-select"
                 :value="config.themeMode.value"
                 @change="setTheme($event.target.value)"
+                :disabled="globalBusy"
               >
                 <option value="system">跟随系统</option>
                 <option value="light">浅色</option>
@@ -431,12 +452,15 @@ function handleSaveWebUI() {
                 min="50"
                 max="150"
                 class="config-input"
+                :disabled="globalBusy"
               />
             </div>
           </div>
 
           <div class="card-actions">
-            <Button @click="handleSaveWebUI"> <Save :size="15" /> 保存配置 </Button>
+            <Button @click="handleSaveWebUI" :disabled="globalBusy">
+              <Save :size="15" /> 保存配置
+            </Button>
           </div>
         </div>
       </div>
