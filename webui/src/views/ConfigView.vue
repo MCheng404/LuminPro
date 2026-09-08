@@ -136,12 +136,61 @@ function handleSaveWebUI() {
         <div class="config-item">
           <div class="config-label">
             <span class="config-name">显示 HDR 内容时休眠</span>
-            <span class="config-desc">HDR/SDR 比率 &gt; 1 时不提升</span>
-            <span class="config-desc" style="color: var(--color-warning)"
-              >出现闪屏建议改用黑名单</span
-            >
+            <span class="config-desc">采用双阈值状态机，避免 HDR 场景忽明忽暗</span>
           </div>
           <Switch v-model="config.displayHdrSleep.value" />
+        </div>
+
+        <!-- HDR 高级参数（开启 HDR 休眠时展开） -->
+        <div class="config-item-expand" :class="{ show: config.displayHdrSleep.value }">
+          <div class="config-item">
+            <div class="config-label">
+              <span class="config-name">HDR 进入阈值</span>
+              <span class="config-desc">hdrSdrRatio 大于此值确认 HDR（默认 1.10）</span>
+            </div>
+            <Input
+              v-model="config.hdrEnterThreshold.value"
+              type="number"
+              step="0.01"
+              min="1.01"
+              max="5.00"
+              class="config-input"
+            />
+          </div>
+
+          <div class="config-item">
+            <div class="config-label">
+              <span class="config-name">HDR 退出阈值</span>
+              <span class="config-desc">hdrSdrRatio 小于此值退出 HDR（默认 1.03）</span>
+            </div>
+            <Input
+              v-model="config.hdrExitThreshold.value"
+              type="number"
+              step="0.01"
+              min="1.00"
+              max="2.00"
+              class="config-input"
+            />
+          </div>
+
+          <div class="config-item">
+            <div class="config-label">
+              <span class="config-name">HDR 冷却期</span>
+              <span class="config-desc">进入 HDR 后保持跳过的秒数（默认 8）</span>
+            </div>
+            <Input
+              v-model="config.hdrCooldown.value"
+              type="number"
+              min="2"
+              max="60"
+              class="config-input"
+            />
+          </div>
+
+          <div class="config-hint">
+            <HelpCircle :size="13" />
+            <span>双阈值滞后机制：比率在进入/退出阈值之间时保持当前状态，有效防止边界振荡。若仍有波动可调大进入阈值或延长冷却期。</span>
+          </div>
         </div>
 
         <div class="config-item">
