@@ -101,11 +101,11 @@ IS_SLEEP_TIME() {
 
 target_bri="$max_bri"
 
-# 平滑渐变调整亮度
+# 平滑渐变调整亮度（兼容无 seq 命令的环境）
 # 参数: $1=起始亮度 $2=目标亮度 $3=步数
 fade_brightness() {
     local start_bri="$1" end_bri="$2" steps="$3"
-    local bri_diff step_value step
+    local bri_diff step_value i=0
 
     bri_diff="$((end_bri - start_bri))"
     if [ "$bri_diff" -eq 0 ]; then
@@ -119,8 +119,9 @@ fade_brightness() {
         return $?
     fi
 
-    for step in $(seq 1 "$steps"); do
-        echo -n $((start_bri + step * step_value)) >"$now_bri_file" 2>/dev/null
+    while [ "$i" -lt "$steps" ]; do
+        i=$((i + 1))
+        echo -n $((start_bri + i * step_value)) >"$now_bri_file" 2>/dev/null
         sleep 0.02
     done
     echo -n "$end_bri" >"$now_bri_file" 2>/dev/null
@@ -128,7 +129,7 @@ fade_brightness() {
 }
 
 update_all() {
-    local step
+    local i=0
     start_bri="$(cat "$now_bri_file")"
     bri_diff="$((target_bri - start_bri))"
     step_value="$((bri_diff / steps_num))"
@@ -139,8 +140,9 @@ update_all() {
     fi
 
     _log "开始渐变调整: $start_bri → $target_bri ($steps_num 步)" "INFO"
-    for step in $(seq 1 "$steps_num"); do
-        echo -n $((start_bri + step * step_value)) >"$now_bri_file"
+    while [ "$i" -lt "$steps_num" ]; do
+        i=$((i + 1))
+        echo -n $((start_bri + i * step_value)) >"$now_bri_file"
         sleep 0.02
     done
     echo -n "$target_bri" >"$now_bri_file" && return 0 || return 1
@@ -149,7 +151,7 @@ update_all() {
 CHECK_BRI() {
     local cycle_num now_bri
     # shellcheck disable=SC2034
-    for cycle_num in $(seq 1 10); do
+    for cycle_num in 1 2 3 4 5 6 7 8 9 10; do
         now_bri="$(cat "$now_bri_file")"
         if [ "$now_bri" -ge "$ui_max_bri" ] && [ "$now_bri" -lt "$target_bri" ]; then
             _log "触发提升: 当前亮度 $now_bri ≥ 阈値 $ui_max_bri，目标 $target_bri" "INFO"
@@ -172,6 +174,7 @@ CHECK_BRI() {
 #   - 比率 < hdr_exit_threshold  → 退出 HDR 状态
 #   - 两者之间 → 保持当前状态不变
 # 状态持久化在 hdr.state 文件中，格式: "状态|时间戳"
+# 冷却期对两种状态都生效，防止状态频繁切换
 # 进入 HDR 时平滑恢复亮度，避免峰值亮度停留在 HDR 场景
 CHECK_HDR() {
     local hdr_state_file="$PID_DIR/hdr.state"
@@ -192,12 +195,15 @@ CHECK_HDR() {
     local now
     now="$(date +%s)"
 
-    # 冷却期内：保持当前状态，不重新检测
-    if [ "$current_state" = "active" ]; then
-        local elapsed=$((now - state_time))
-        if [ "$elapsed" -lt "$hdr_cooldown" ]; then
-            _log "HDR 状态冷却期内 (${elapsed}s / ${hdr_cooldown}s)，保持跳过" "INFO"
+    # 冷却期内：保持当前状态，不重新检测（两种状态都适用）
+    local elapsed=$((now - state_time))
+    if [ "$elapsed" -lt "$hdr_cooldown" ]; then
+        if [ "$current_state" = "active" ]; then
+            _log "HDR 冷却期内 (${elapsed}s / ${hdr_cooldown}s)，保持 HDR 跳过" "INFO"
             return 0
+        else
+            _log "HDR 冷却期内 (${elapsed}s / ${hdr_cooldown}s)，保持非 HDR 状态" "DEBUG"
+            return 1
         fi
     fi
 
@@ -241,13 +247,8 @@ CHECK_HDR() {
         else
             _log "HDR 状态切换: 退出 HDR (比率: $hdr_ratio_rounded < 阈值: $hdr_exit_threshold)" "INFO"
         fi
-        # 持久化新状态
+        # 持久化新状态（记录切换时间，用于冷却计时）
         echo "${new_state}|${now}" >"$hdr_state_file"
-    else
-        # 状态未变，更新时间戳（active 状态用于冷却计时）
-        if [ "$new_state" = "active" ]; then
-            echo "${new_state}|${now}" >"$hdr_state_file"
-        fi
     fi
 
     if [ "$new_state" = "active" ]; then
