@@ -1,13 +1,15 @@
 <script setup>
+import { computed } from 'vue'
 import { cn } from '@/lib/utils'
 import { cva } from 'class-variance-authority'
+import { Loader2 } from 'lucide-vue-next'
 
 const buttonVariants = cva(
-  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0',
+  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 active:scale-[0.97] [&_svg]:pointer-events-none [&_svg]:shrink-0',
   {
     variants: {
       variant: {
-        default: 'bg-primary text-primary-foreground hover:bg-primary/90 active:bg-primary/80',
+        default: 'bg-primary text-primary-foreground hover:bg-primary/90',
         destructive:
           'bg-destructive/20 text-destructive border border-destructive/40 hover:bg-destructive/30',
         outline:
@@ -36,18 +38,25 @@ const props = defineProps({
   size: { type: String, default: 'default' },
   class: { type: String, default: '' },
   disabled: { type: Boolean, default: false },
+  loading: { type: Boolean, default: false },
   type: { type: String, default: 'button' },
   as: { type: String, default: 'button' },
 })
+
+const isDisabled = computed(() => props.disabled || props.loading)
 </script>
 
 <template>
   <component
     :is="as"
     :type="as === 'button' ? type : undefined"
-    :disabled="disabled || undefined"
+    :disabled="isDisabled || undefined"
     :class="cn(buttonVariants({ variant, size }), props.class)"
   >
-    <slot />
+    <Loader2 v-if="loading" :size="16" class="animate-spin" />
+    <slot v-if="!loading" />
+    <span v-if="loading" class="loading-text">
+      <slot name="loading">处理中...</slot>
+    </span>
   </component>
 </template>
