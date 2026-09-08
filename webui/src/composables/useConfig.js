@@ -28,6 +28,11 @@ export function useConfig() {
   const sleepEndH = ref('06')
   const sleepEndM = ref('00')
 
+  // HDR 状态机配置（双阈值滞后 + 冷却期）
+  const hdrEnterThreshold = ref('1.10')
+  const hdrExitThreshold = ref('1.03')
+  const hdrCooldown = ref('8')
+
   // 高级设置
   const nowBriFile = ref(DEFAULT_NOW_BRI_FILE)
   const sysMaxBriFile = ref(DEFAULT_SYS_MAX_BRI_FILE)
@@ -59,6 +64,9 @@ export function useConfig() {
       logMaxSize,
       autoBriSleep,
       displayHdrSleep,
+      hdrEnterThreshold,
+      hdrExitThreshold,
+      hdrCooldown,
       compatibilityMode,
       sleepMode,
       sleepStartH,
@@ -90,6 +98,9 @@ export function useConfig() {
     logMaxSize.value = cfg.log_max_size != null ? String(cfg.log_max_size) : '500'
     autoBriSleep.value = cfg.auto_bri_sleep === 1
     displayHdrSleep.value = cfg.display_hdr_sleep === 1
+    hdrEnterThreshold.value = cfg.hdr_enter_threshold != null ? String(cfg.hdr_enter_threshold) : '1.10'
+    hdrExitThreshold.value = cfg.hdr_exit_threshold != null ? String(cfg.hdr_exit_threshold) : '1.03'
+    hdrCooldown.value = cfg.hdr_cooldown != null ? String(cfg.hdr_cooldown) : '8'
     compatibilityMode.value = cfg.compatibility_mode === 1
     nowBriFile.value = cfg.now_bri_file || DEFAULT_NOW_BRI_FILE
     sysMaxBriFile.value = cfg.max_bri_file || DEFAULT_SYS_MAX_BRI_FILE
@@ -139,6 +150,9 @@ export function useConfig() {
       log_max_size: parseInt(logMaxSize.value) || 500,
       auto_bri_sleep: autoBriSleep.value ? 1 : 0,
       display_hdr_sleep: displayHdrSleep.value ? 1 : 0,
+      hdr_enter_threshold: parseFloat(hdrEnterThreshold.value) || 1.10,
+      hdr_exit_threshold: parseFloat(hdrExitThreshold.value) || 1.03,
+      hdr_cooldown: parseInt(hdrCooldown.value) || 8,
       compatibility_mode: compatibilityMode.value ? 1 : 0,
       sleep_time: getSleepTimeStr(),
       log_level: logLevel.value,
@@ -185,6 +199,9 @@ export function useConfig() {
     maxBri.value = backup.max_bri != null ? String(backup.max_bri) : ''
     autoBriSleep.value = backup.auto_bri_sleep === 1
     displayHdrSleep.value = backup.display_hdr_sleep === 1
+    hdrEnterThreshold.value = backup.hdr_enter_threshold != null ? String(backup.hdr_enter_threshold) : '1.10'
+    hdrExitThreshold.value = backup.hdr_exit_threshold != null ? String(backup.hdr_exit_threshold) : '1.03'
+    hdrCooldown.value = backup.hdr_cooldown != null ? String(backup.hdr_cooldown) : '8'
     compatibilityMode.value = backup.compatibility_mode === 1
     stepsNum.value = backup.steps_num != null ? String(backup.steps_num) : '50'
     logMaxSize.value = backup.log_max_size != null ? String(backup.log_max_size) : '500'
@@ -249,6 +266,9 @@ export function useConfig() {
     logMaxSize,
     autoBriSleep,
     displayHdrSleep,
+    hdrEnterThreshold,
+    hdrExitThreshold,
+    hdrCooldown,
     compatibilityMode,
     sleepMode,
     sleepStartH,
