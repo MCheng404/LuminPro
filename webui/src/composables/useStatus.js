@@ -3,6 +3,7 @@ import {
   runCmd,
   runCmdSilent,
   readConfig,
+  MODULE_DIR,
   PID_FILE,
   STOP_FLAG_FILE,
   DEFAULT_NOW_BRI_FILE,
@@ -119,7 +120,7 @@ export function useStatus() {
     if (isToggling.value) return
     isToggling.value = true
     try {
-      const res = await runCmd(`sh /data/adb/modules/LuminPro/action.sh`)
+      const res = await runCmd(`sh ${MODULE_DIR}/action.sh`)
       toast(res.errno === 0 ? res.stdout.trim() || '状态已切换' : '操作失败: ' + res.stderr)
       // 延迟刷新，给服务启动/停止留出时间
       setTimeout(async () => {
@@ -135,7 +136,7 @@ export function useStatus() {
     isRestarting.value = true
     toast('正在重启服务...')
     try {
-      const res = await runCmd(`sh /data/adb/modules/LuminPro/script/restart.sh`)
+      const res = await runCmd(`sh ${MODULE_DIR}/script/restart.sh`)
       toast(res.errno === 0 ? '服务已成功重启' : '重启失败: ' + res.stderr)
       // 延迟刷新，给服务重启留出时间
       setTimeout(async () => {
