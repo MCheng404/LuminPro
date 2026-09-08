@@ -18,7 +18,7 @@ DEFAULT_NOW_BRI_FILE="/sys/class/backlight/panel0-backlight/brightness"
 DEFAULT_MAX_BRI_FILE="/sys/class/backlight/panel0-backlight/max_brightness"
 
 mod_config="$MODPATH/config"
-old_config="/data/adb/modules/LuminPro/config"
+old_config="/data/adb/modules/LuminMax/config"
 
 # jq 二进制（已随模块提取）
 JQ="$MODPATH/bin/jq"
@@ -64,6 +64,9 @@ write_config_json() {
         --arg log_max_size "${cfg_log_max_size:-512}" \
         --arg auto_bri_sleep "${cfg_auto_bri_sleep:-1}" \
         --arg display_hdr_sleep "${cfg_display_hdr_sleep:-0}" \
+        --arg hdr_enter_threshold "${cfg_hdr_enter_threshold:-1.10}" \
+        --arg hdr_exit_threshold "${cfg_hdr_exit_threshold:-1.03}" \
+        --arg hdr_cooldown "${cfg_hdr_cooldown:-8}" \
         --arg compatibility_mode "${cfg_compatibility_mode:-0}" \
         --arg sleep_time "${cfg_sleep_time:-}" \
         --arg inotify_events "${cfg_inotify_events:-c}" \
@@ -72,19 +75,22 @@ write_config_json() {
         --arg log_level "${cfg_log_level:-info}" \
         --argjson blacklist_apps "${cfg_blacklist_apps:-[]}" \
         '{
-            ui_max_bri:        ($ui_max_bri        | tonumber),
-            max_bri:           ($max_bri           | tonumber),
-            steps_num:         ($steps_num         | tonumber),
-            log_max_size:      ($log_max_size       | tonumber),
-            auto_bri_sleep:    ($auto_bri_sleep     | tonumber),
-            display_hdr_sleep: ($display_hdr_sleep  | tonumber),
-            compatibility_mode:($compatibility_mode | tonumber),
-            sleep_time:        $sleep_time,
-            inotify_events:    $inotify_events,
-            now_bri_file:      $now_bri_file,
-            max_bri_file:      $max_bri_file,
-            log_level:         $log_level,
-            blacklist_apps:    $blacklist_apps
+            ui_max_bri:          ($ui_max_bri          | tonumber),
+            max_bri:             ($max_bri             | tonumber),
+            steps_num:           ($steps_num           | tonumber),
+            log_max_size:        ($log_max_size        | tonumber),
+            auto_bri_sleep:      ($auto_bri_sleep      | tonumber),
+            display_hdr_sleep:   ($display_hdr_sleep   | tonumber),
+            hdr_enter_threshold: ($hdr_enter_threshold | tonumber),
+            hdr_exit_threshold:  ($hdr_exit_threshold  | tonumber),
+            hdr_cooldown:        ($hdr_cooldown        | tonumber),
+            compatibility_mode:  ($compatibility_mode  | tonumber),
+            sleep_time:          $sleep_time,
+            inotify_events:      $inotify_events,
+            now_bri_file:        $now_bri_file,
+            max_bri_file:        $max_bri_file,
+            log_level:           $log_level,
+            blacklist_apps:      $blacklist_apps
         }' >"$CONFIG_FILE"
 }
 
@@ -251,6 +257,9 @@ IMPORT_OLD_CONFIG() {
             cfg_log_max_size="$(read_old_txt log_max_size.txt '512')"
             cfg_auto_bri_sleep="$(read_old_txt auto_bri_sleep.txt '1')"
             cfg_display_hdr_sleep="$(read_old_txt display_hdr_sleep.txt '0')"
+            cfg_hdr_enter_threshold="$(read_old_txt hdr_enter_threshold.txt '1.10')"
+            cfg_hdr_exit_threshold="$(read_old_txt hdr_exit_threshold.txt '1.03')"
+            cfg_hdr_cooldown="$(read_old_txt hdr_cooldown.txt '8')"
             cfg_compatibility_mode="$(read_old_txt compatibility_mode.txt '0')"
             cfg_sleep_time="$(read_old_txt sleep_time.txt '')"
             cfg_inotify_events="$(read_old_txt inotify_events.txt 'c')"
@@ -291,6 +300,9 @@ INIT_CONFIG() {
         cfg_log_max_size=512
         cfg_auto_bri_sleep=1
         cfg_display_hdr_sleep=0
+        cfg_hdr_enter_threshold=1.10
+        cfg_hdr_exit_threshold=1.03
+        cfg_hdr_cooldown=8
         cfg_compatibility_mode=0
         cfg_sleep_time=""
         cfg_inotify_events="c"
@@ -305,15 +317,18 @@ INIT_CONFIG() {
 # 补全缺失字段
 ENSURE_DEFAULTS() {
     "$JQ" '
-        .steps_num         = (.steps_num         // 50) |
-        .log_max_size      = (.log_max_size       // 512) |
-        .auto_bri_sleep    = (.auto_bri_sleep     // 1) |
-        .display_hdr_sleep = (.display_hdr_sleep  // 0) |
-        .compatibility_mode= (.compatibility_mode // 0) |
-        .sleep_time        = (.sleep_time         // "") |
-        .inotify_events    = (.inotify_events     // "c") |
-        .log_level         = (.log_level          // "info") |
-        .blacklist_apps    = (.blacklist_apps     // [])
+        .steps_num           = (.steps_num           // 50) |
+        .log_max_size        = (.log_max_size        // 512) |
+        .auto_bri_sleep      = (.auto_bri_sleep      // 1) |
+        .display_hdr_sleep   = (.display_hdr_sleep   // 0) |
+        .hdr_enter_threshold = (.hdr_enter_threshold // 1.10) |
+        .hdr_exit_threshold  = (.hdr_exit_threshold  // 1.03) |
+        .hdr_cooldown        = (.hdr_cooldown        // 8) |
+        .compatibility_mode  = (.compatibility_mode  // 0) |
+        .sleep_time          = (.sleep_time          // "") |
+        .inotify_events      = (.inotify_events      // "c") |
+        .log_level           = (.log_level           // "info") |
+        .blacklist_apps      = (.blacklist_apps      // [])
     ' "$CONFIG_FILE" >"$CONFIG_FILE.tmp" && mv "$CONFIG_FILE.tmp" "$CONFIG_FILE"
 }
 
@@ -413,12 +428,12 @@ END() {
     echo " - 最大亮度节点:   $max_path"
     echo " - 黑名单应用:     ${bl_count} 个"
     echo "==============================="
-    echo " ❆ 配置文件: /data/adb/modules/LuminPro/config/config.json"
+    echo " ❆ 配置文件: /data/adb/modules/LuminMax/config/config.json"
     echo " ❆ 也可以使用 Web UI 进行配置"
     echo ""
     echo " ✦ 模块已刷入，请重启手机"
     echo " ❆ 感谢您的使用"
-    echo " ❆ 作者: 酷安 @于乐yule"
+    echo " ❆ 作者: Maocat（二改）& 酷安@Yule"
     echo ""
     sleep 1
     exit 0
