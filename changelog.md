@@ -1,3 +1,13 @@
+## 20260908 (LuminMax)
+
+- 更名: 模块正式更名为 **LuminMax**（原 LuminPro），作者 Maocat（二改）& 酷安@Yule
+- 修复: **HDR 冷却期不对称**问题 — 原实现仅 active 状态有冷却期，inactive 状态无冷却导致退出 HDR 后立即重新检测，可能引发频繁切换；现两种状态均受冷却期保护
+- 修复: 渐变函数 `fade_brightness` / `update_all` 使用 `seq` 命令在部分精简 ROM 上不可用的问题，改用 `while` 循环提升兼容性
+- 修复: `CHECK_BRI` 中 `seq 1 10` 同样替换为固定循环，避免依赖外部命令
+- 修复: 全新安装时 `customize.sh` 的 `write_config_json` / `ENSURE_DEFAULTS` 缺少 HDR 配置字段（`hdr_enter_threshold` / `hdr_exit_threshold` / `hdr_cooldown`）的问题
+- 优化: WebUI 中所有模块路径统一使用 `MODULE_DIR` 常量，避免硬编码
+- 优化: 日志导出文件名同步更名为 LuminMax
+
 ## V2.5-2609
 
 - 修复: **HDR 场景下亮度忽明忽暗**的核心问题
@@ -10,6 +20,8 @@
 - 新增: Web UI 中 HDR 开关下展开高级参数配置，支持实时调整阈值与冷却期
 - 优化: 提取通用 `fade_brightness` 渐变函数，提升代码复用性
 - 优化: 启动时自动清理 HDR 状态文件，避免旧状态残留
+- 优化: WebUI 点击按钮卡顿问题 — 引入全局操作锁、后台静默执行、按钮 loading 状态、防重复点击
+- 优化: WebUI 布局 — config-item 最小高度 44px、展开区域加背景色边框、header 更紧凑
 
 ## V2.4-2401
 
