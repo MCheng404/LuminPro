@@ -3,9 +3,7 @@ import { ref } from 'vue'
 import MarkdownIt from 'markdown-it'
 import Button from '@/components/ui/Button.vue'
 import { BookOpen, ScrollText, StickyNote, X, Github } from 'lucide-vue-next'
-import { runCmd } from '../utils.js'
-
-const MODULE_DIR = '/data/adb/modules/LuminPro'
+import { runCmd, MODULE_DIR } from '../utils.js'
 
 const sheetOpen = ref(false)
 const sheetTitle = ref('')
@@ -72,7 +70,7 @@ function closeSheet() {
           class="about-list-item"
           @click="
             runCmd(
-              'am start -a android.intent.action.VIEW -d \'https://github.com/YuleBest/LuminPro\'',
+              'am start -a android.intent.action.VIEW -d \'https://github.com/MCheng404/LuminPro\'',
             )
           "
         >
@@ -81,7 +79,7 @@ function closeSheet() {
         </button>
       </div>
 
-      <p class="about-footer">Made with ❤ by Yule</p>
+      <p class="about-footer">LuminMax by Maocat（二改）& Yule</p>
     </section>
 
     <!-- 文档底部弹出抽屉 -->
