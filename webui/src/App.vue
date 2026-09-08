@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, provide, onMounted, onUnmounted, watch } from 'vue'
 import { moduleInfo } from 'kernelsu'
-import { runCmd, showToast } from './utils.js'
+import { runCmd, showToast, isBusy, onBusyChange } from './utils.js'
 import { useStatus } from './composables/useStatus.js'
 import { useConfig } from './composables/useConfig.js'
 import { useLog } from './composables/useLog.js'
@@ -16,6 +16,7 @@ const NAV_ORDER = ['status', 'config', 'apps', 'log', 'about']
 const currentView = ref('status')
 const headerEl = ref(null)
 const headerHidden = ref(false)
+const globalBusy = ref(false)
 
 const trackStyle = computed(() => {
   const idx = NAV_ORDER.indexOf(currentView.value)
@@ -31,14 +32,17 @@ provide('showToast', showToast)
 provide('status', status)
 provide('config', config)
 provide('log', log)
+provide('globalBusy', globalBusy)
 
 let refreshTimer = null
+let _refreshPaused = false
 
 function startRefresh() {
   stopRefresh()
   if (!config.autoRefresh.value) return
   const interval = config.statusRefreshInterval.value
   refreshTimer = setInterval(async () => {
+    if (_refreshPaused || globalBusy.value) return // 操作期间跳过刷新，避免 exec 冲突
     try {
       await Promise.all([status.load(), log.load()])
     } catch {}
@@ -58,6 +62,19 @@ function restartRefresh(enabled, interval) {
   startRefresh()
 }
 provide('restartRefresh', restartRefresh)
+
+// 监听全局 busy 状态：操作期间暂停刷新，操作完成后延迟恢复
+onBusyChange((busy) => {
+  globalBusy.value = busy
+  if (busy) {
+    _refreshPaused = true
+  } else {
+    // 操作完成后延迟 500ms 再恢复刷新，给系统喘息时间
+    setTimeout(() => {
+      _refreshPaused = false
+    }, 500)
+  }
+})
 
 // 跟随系统色彩偏好变化
 let _mq = null
@@ -129,7 +146,7 @@ function handleViewChange(view) {
 </script>
 
 <template>
-  <div class="min-h-screen bg-background text-foreground">
+  <div class="min-h-screen bg-background text-foreground" :class="{ 'app-busy': globalBusy }">
     <!-- 顶部状态栏渐变模糊 -->
     <div class="top-blur"></div>
 
@@ -152,6 +169,7 @@ function handleViewChange(view) {
             <button
               class="btn-status-action"
               id="btn-toggle-service"
+              :disabled="globalBusy"
               @click="status.toggleService(showToast)"
             >
               {{ status.isPaused.value ? '启用' : '暂停' }}
@@ -159,6 +177,7 @@ function handleViewChange(view) {
             <button
               class="btn-status-action"
               id="btn-restart-service"
+              :disabled="globalBusy"
               @click="status.restartService(showToast)"
             >
               重启
