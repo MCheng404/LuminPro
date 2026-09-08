@@ -1,6 +1,7 @@
 import { ref, watch } from 'vue'
 import {
   runCmd,
+  runCmdSilent,
   readConfig,
   writeConfig,
   updateConfig,
@@ -39,6 +40,10 @@ export function useConfig() {
   const inotifyEvents = ref('c')
   const debugMode = ref(false)
   const logLevel = ref('info')
+
+  // 操作状态
+  const isSaving = ref(false)
+  const isSavingAdvanced = ref(false)
 
   // 脸污标记
   const dirty = ref(false)
@@ -135,54 +140,70 @@ export function useConfig() {
   }
 
   async function save(toast) {
+    if (isSaving.value) return
     if (!uiMaxBri.value || !maxBri.value) {
       toast('亮度値不能为空')
       return
     }
+    isSaving.value = true
     toast('保存中...')
-    // 读取当前配置（保留 blacklist_apps 等其他字段）
-    const current = await readConfig()
-    await writeConfig({
-      ...current,
-      ui_max_bri: parseInt(uiMaxBri.value) || 0,
-      max_bri: parseInt(maxBri.value) || 0,
-      steps_num: parseInt(stepsNum.value) || 50,
-      log_max_size: parseInt(logMaxSize.value) || 500,
-      auto_bri_sleep: autoBriSleep.value ? 1 : 0,
-      display_hdr_sleep: displayHdrSleep.value ? 1 : 0,
-      hdr_enter_threshold: parseFloat(hdrEnterThreshold.value) || 1.10,
-      hdr_exit_threshold: parseFloat(hdrExitThreshold.value) || 1.03,
-      hdr_cooldown: parseInt(hdrCooldown.value) || 8,
-      compatibility_mode: compatibilityMode.value ? 1 : 0,
-      sleep_time: getSleepTimeStr(),
-      log_level: logLevel.value,
-    })
-    await runCmd(`rm -f "${FLAG_FILE}"`)
-    const pidRes = await runCmd(`cat "${PID_FILE}"`)
-    toast(
-      pidRes.errno === 0 && pidRes.stdout.trim()
-        ? '配置已保存 (下次重启或触发时生效)'
-        : '配置已保存 (服务未运行)',
-    )
-    dirty.value = false
+    try {
+      // 读取当前配置（保留 blacklist_apps 等其他字段）— 使用静默执行
+      const current = await readConfig()
+      await writeConfig({
+        ...current,
+        ui_max_bri: parseInt(uiMaxBri.value) || 0,
+        max_bri: parseInt(maxBri.value) || 0,
+        steps_num: parseInt(stepsNum.value) || 50,
+        log_max_size: parseInt(logMaxSize.value) || 500,
+        auto_bri_sleep: autoBriSleep.value ? 1 : 0,
+        display_hdr_sleep: displayHdrSleep.value ? 1 : 0,
+        hdr_enter_threshold: parseFloat(hdrEnterThreshold.value) || 1.10,
+        hdr_exit_threshold: parseFloat(hdrExitThreshold.value) || 1.03,
+        hdr_cooldown: parseInt(hdrCooldown.value) || 8,
+        compatibility_mode: compatibilityMode.value ? 1 : 0,
+        sleep_time: getSleepTimeStr(),
+        log_level: logLevel.value,
+      })
+      await runCmdSilent(`rm -f "${FLAG_FILE}"`)
+      const pidRes = await runCmdSilent(`cat "${PID_FILE}"`)
+      toast(
+        pidRes.errno === 0 && pidRes.stdout.trim()
+          ? '配置已保存 (下次触发时生效)'
+          : '配置已保存 (服务未运行)',
+      )
+      dirty.value = false
+    } catch (e) {
+      toast('保存失败: ' + (e?.message || '未知错误'))
+    } finally {
+      isSaving.value = false
+    }
   }
 
   async function saveAdvanced(toast, onPathsChanged) {
+    if (isSavingAdvanced.value) return
+    isSavingAdvanced.value = true
     toast('保存中...')
-    await updateConfig({
-      now_bri_file: nowBriFile.value || DEFAULT_NOW_BRI_FILE,
-      max_bri_file: sysMaxBriFile.value || DEFAULT_SYS_MAX_BRI_FILE,
-      inotify_events: inotifyEvents.value || 'c',
-      debug_mode: debugMode.value ? 1 : 0,
-    })
-    onPathsChanged?.()
-    toast('高级设置已保存，需重启服务生效')
-    dirtyAdvanced.value = false
+    try {
+      await updateConfig({
+        now_bri_file: nowBriFile.value || DEFAULT_NOW_BRI_FILE,
+        max_bri_file: sysMaxBriFile.value || DEFAULT_SYS_MAX_BRI_FILE,
+        inotify_events: inotifyEvents.value || 'c',
+        debug_mode: debugMode.value ? 1 : 0,
+      })
+      onPathsChanged?.()
+      toast('高级设置已保存，需重启服务生效')
+      dirtyAdvanced.value = false
+    } catch (e) {
+      toast('保存失败: ' + (e?.message || '未知错误'))
+    } finally {
+      isSavingAdvanced.value = false
+    }
   }
 
   async function resetToDefaults(toast) {
     toast('正在恢复默认配置...')
-    const backupRes = await runCmd(`cat "${BACKUP_CONFIG_FILE}"`)
+    const backupRes = await runCmdSilent(`cat "${BACKUP_CONFIG_FILE}"`)
     if (backupRes.errno !== 0 || !backupRes.stdout.trim()) {
       toast('备份文件不存在，无法恢复')
       return
@@ -280,6 +301,8 @@ export function useConfig() {
     inotifyEvents,
     debugMode,
     logLevel,
+    isSaving,
+    isSavingAdvanced,
     dirty,
     dirtyAdvanced,
     autoRefresh,
